@@ -12,10 +12,16 @@ app.get('/', (req, res) => {
     res.send(logs)
 })
 
-app.post('/', (req, res) => {
+const asyncMiddleware = fn => (req, res, next) => {
+    Promise.resolve(fn(req, res, next))
+        .catch(next);
+}
+
+app.post('/', asyncMiddleware(async (req, res) => {
+    await (new Promise(resolve => setTimeout(resolve, process.env.DELAY * 1000)))
     logs.push(req.body.message)
     res.send(logs)
-})
+}))
 
 app.listen(port, () => {
     console.log(`Example app listening at http://localhost:${port}`)

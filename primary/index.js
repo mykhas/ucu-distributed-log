@@ -19,20 +19,27 @@ app.get('/', (req, res) => {
 
 const asyncMiddleware = fn => (req, res, next) => {
     Promise.resolve(fn(req, res, next))
-        .catch(next);
-};
+        .catch(next)
+}
+
+const callSecondaryHost = (body, h) => {
+    return fetch(`${h}/`, {
+        method: 'POST',
+        body: JSON.stringify(body),
+        headers: { 'Content-Type': 'application/json' }
+    })
+}
 
 app.post('/', asyncMiddleware(async (req, res, next) => {
     logs.push(req.body.message)
-    await Promise.race(secondaryHosts.map(h => {
-        return fetch(`${h}/`, {
-            method: 'POST',
-            body: JSON.stringify(req.body),
-            headers: { 'Content-Type': 'application/json' }
-        })
-    }))
-        .then(res => res.json())
-        .then(json => console.log(json));
+    if(req.body.w <= 1) {
+        // we're not waiting for response here
+        Promise.all(secondaryHosts.map(callSecondaryHost.bind(this, req.body)))
+    } else {
+        const handler = req.body.w == 2 ? Promise.race.bind(Promise) : Promise.all.bind(Promise)
+        await handler(secondaryHosts.map(callSecondaryHost.bind(this, req.body)))
+    }
+    
     res.send(logs)
 }))
 
