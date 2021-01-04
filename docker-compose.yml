@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+
+  primary:
+    build:
+       context: ./primary
+       dockerfile: Dockerfile
+    ports:
+      - "${MY_DOCKER_IP:-127.0.0.1}:9000:9000"
+
+  secondary-1:
+    build:
+       context: ./secondary
+       dockerfile: Dockerfile
+    environment:
+      #delay on adding messages in seconds 
+      - DELAY=10
+    ports:
+      - "${MY_DOCKER_IP:-127.0.0.1}:9001:9000"
+
+  secondary-2:
+    build:
+       context: ./secondary
+       dockerfile: Dockerfile
+    environment:
+      #delay on adding messages in seconds 
+      - DELAY=0
+    ports:
+      - "${MY_DOCKER_IP:-127.0.0.1}:9002:9000"
