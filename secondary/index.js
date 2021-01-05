@@ -19,7 +19,9 @@ const asyncMiddleware = fn => (req, res, next) => {
 
 app.post('/', asyncMiddleware(async (req, res) => {
     await (new Promise(resolve => setTimeout(resolve, process.env.DELAY * 1000)))
-    logs.push(req.body.message)
+    if(!logs.find(l => l.message === req.body.message && l.ts === req.body.ts)) {
+        logs.push({ ts: req.body.ts, message: req.body.message })
+    }
     res.send(logs)
 }))
 
