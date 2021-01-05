@@ -39,15 +39,23 @@ const getKey = (body, h) => {
     return `resolved:${body.ts}_${body.message}_${h.url}`
 }
 
-const callSecondaryHost = (body, h) => {
+const runRecursiveCalls = (body, h) => {
+    const delay = h.delay * 1000
+    h.delay *= 2
+    const timeout = setTimeout(runRecursiveCalls, delay, body, h)
     fetch(`${h.url}/`, {
         method: 'POST',
         body: JSON.stringify(body),
         headers: { 'Content-Type': 'application/json' }
     }).then(_ => {
+        clearTimeout(timeout)
+        h.delay = basicDelay
         eventEmitter.emit(getKey(body, h))
     })
+}
 
+const callSecondaryHost = (body, h) => {
+    runRecursiveCalls(body, h)
     return new Promise(resolve => eventEmitter.once(getKey(body, h), resolve))
 }
 
