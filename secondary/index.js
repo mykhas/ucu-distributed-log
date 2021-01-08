@@ -27,6 +27,11 @@ app.post('/', asyncMiddleware(async (req, res) => {
     res.send(logs)
 }))
 
+app.post('/health', (req, res) => {
+    if(isSwitchedOff) throw new Error('Server is switched off')
+    res.send({})
+})
+
 app.patch('/', (req, res) => {
     isSwitchedOff = req.body.off === true
     res.send({ isSwitchedOff })

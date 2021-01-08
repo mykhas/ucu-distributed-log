@@ -6,6 +6,7 @@ const app = express()
 const eventEmitter = new events.EventEmitter()
 const port = 9000
 const basicDelay = 5
+const healthDelay = 30
 const secondaryHosts = [
     {
         'url': 'http://host.docker.internal:9001',
@@ -75,10 +76,24 @@ const callSecondaryHost = (body, h) => {
 }
 
 const sendHeartbeat = h => {
-    
+    secondaryHosts.forEach(async h => {
+        await fetch(`${h.url}/health`, {
+            method: 'POST'
+        }).then(response => {
+            if(response.ok) return response
+            throw new Error(`Data wasn't replicated to ${h.url}`)
+        }).then(() => {
+            h.wasAliveAt = Date.now()
+            h.status = 'healthy'
+        }).catch((e) => {
+            console.log(e)
+            h.status = ((Date.now() - h.wasAliveAt) > healthDelay * 1000) ? 'unhealthy' : 'suspected'
+        })
+    })
 }
 
 app.post('/', asyncMiddleware(async (req, res, next) => {
+    if(!secondaryHosts.find(h => h.status === 'healthy')) throw new Error('Both secondaries are unhealthy')
     req.body.ts = Date.now()
     logs.push({ ts: req.body.ts, message: req.body.message })
     const calls = secondaryHosts.map(callSecondaryHost.bind(this, req.body))
@@ -92,6 +107,15 @@ app.post('/', asyncMiddleware(async (req, res, next) => {
     
     res.send(logs)
 }))
+
+app.post('/health', (req, res, next) => {
+    res.send(secondaryHosts.map(h => ({
+        url: h.url,
+        status: h.status
+    })))
+})
+
+setInterval(sendHeartbeat, basicDelay * 1000)
 
 app.listen(port, () => {
     console.log(`Example app listening at http://localhost:${port}`)
